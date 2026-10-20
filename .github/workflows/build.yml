@@ -26,24 +26,43 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # АВТО-ИСПРАВЛЕНИЕ ИМПОРТОВ В СКРИПТЕ
-      - name: Auto-Fix Missing Imports
+      # АВТО-ИСПРАВЛЕНИЕ И ДОБАВЛЕНИЕ БУФЕРА ОБМЕНА
+      - name: Auto-Fix & Add Clipboard Button
         run: |
           python3 -c "
           with open('build_moon.sh', 'r') as f:
               code = f.read()
 
-          # Исправляем импорты в MainActivity.kt
+          # 1. Исправляем импорты в MainActivity.kt (MaterialTheme)
           code = code.replace(
               'import android.content.*\nimport android.os.Bundle',
               'import android.content.*\nimport androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.darkColorScheme\nimport android.os.Bundle'
           )
 
-          # Исправляем импорты в HomeScreen.kt
+          # 2. Исправляем импорты в HomeScreen.kt (R)
           code = code.replace(
-              'import com.moon.vpn.*\n\n@OptIn(ExperimentalMaterial3Api::class)',
-              'import com.moon.vpn.*\nimport com.moon.vpn.R\n\n@OptIn(ExperimentalMaterial3Api::class)'
+              'import com.moon.vpn.*\n',
+              'import com.moon.vpn.*\nimport com.moon.vpn.R\n'
           )
+
+          # 3. Добавляем кнопку вставки из буфера обмена
+          old_textfield = 'OutlinedTextField(value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(\"https://...\") }, colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg))'
+          
+          new_textfield = '''val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                OutlinedTextField(
+                    value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(\"https://...\") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg),
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            val clipText = clipboardManager.getText()?.text
+                            if (!clipText.isNullOrBlank()) inputUrl = clipText
+                        }) {
+                            Icon(Icons.Default.ContentPaste, contentDescription = \"Вставить\", tint = Moon.Muted)
+                        }
+                    }
+                )'''
+          
+          code = code.replace(old_textfield, new_textfield)
 
           with open('build_moon.sh', 'w') as f:
               f.write(code)
