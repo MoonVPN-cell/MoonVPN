@@ -26,29 +26,29 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # АВТО-ИСПРАВЛЕНИЕ СКРИПТА ПРЯМО ВО ВРЕМЯ СБОРКИ
+      # АВТО-ИСПРАВЛЕНИЕ СКРИПТА
       - name: Auto-Fix Script
         run: |
           python3 -c "
-          import re
           with open('build_moon.sh', 'r') as f:
               code = f.read()
 
-          # 1. Исправляем типы данных для libv2ray (Int -> Long)
+          # 1. libv2ray (Int -> Long)
           code = code.replace('override fun startup(): Int = 0', 'override fun startup(): Long = 0')
           code = code.replace('override fun shutdown(): Int = 0', 'override fun shutdown(): Long = 0')
           code = code.replace('override fun onEmitStatus(code: Int, message: String): Int {', 'override fun onEmitStatus(code: Long, message: String?): Long {')
           code = code.replace('if (code != 0) sendError(\"Xray: \$message\"); return 0', 'if (code != 0L) sendError(\"Xray: \$message\"); return 0L')
 
-          # 2. Исправляем названия цветов для Compose TextField
-          code = code.replace('TextFieldDefaults.colors', 'OutlinedTextFieldDefaults.colors')
+          # 2. Исправляем двойной Outlined и цвета Compose
+          code = code.replace('OutlinedOutlinedTextFieldDefaults', 'OutlinedTextFieldDefaults')
+          code = code.replace('= TextFieldDefaults.colors(', '= OutlinedTextFieldDefaults.colors(')
           code = code.replace('focusedIndicatorColor', 'focusedBorderColor')
           code = code.replace('unfocusedIndicatorColor', 'unfocusedBorderColor')
 
-          # 3. Заменяем отсутствующую иконку
+          # 3. Иконки
           code = code.replace('Icons.Default.Zap', 'Icons.Default.Settings')
 
-          # 4. Убираем конфликт JVM сигнатур (переименовываем функции)
+          # 4. Конфликты JVM (setters)
           code = code.replace('fun setSubscriptions', 'fun updateSubscriptions')
           code = code.replace('setSubscriptions(', 'updateSubscriptions(')
           code = code.replace('fun setAutoConnect', 'fun updateAutoConnect')
@@ -57,6 +57,9 @@ jobs:
           code = code.replace('setKillSwitch(', 'updateKillSwitch(')
           code = code.replace('fun setNotifications', 'fun updateNotifications')
           code = code.replace('setNotifications(', 'updateNotifications(')
+
+          # 5. Добавляем недостающую ветку RECONNECTING в MainActivity
+          code = code.replace('ConnState.CONNECTED, ConnState.CONNECTING -> disconnect()', 'ConnState.CONNECTED, ConnState.CONNECTING, ConnState.RECONNECTING -> disconnect()')
 
           with open('build_moon.sh', 'w') as f:
               f.write(code)
