@@ -26,6 +26,29 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
+      # АВТО-ИСПРАВЛЕНИЕ ИМПОРТОВ В СКРИПТЕ
+      - name: Auto-Fix Missing Imports
+        run: |
+          python3 -c "
+          with open('build_moon.sh', 'r') as f:
+              code = f.read()
+
+          # Исправляем импорты в MainActivity.kt
+          code = code.replace(
+              'import android.content.*\nimport android.os.Bundle',
+              'import android.content.*\nimport androidx.compose.material3.MaterialTheme\nimport androidx.compose.material3.darkColorScheme\nimport android.os.Bundle'
+          )
+
+          # Исправляем импорты в HomeScreen.kt
+          code = code.replace(
+              'import com.moon.vpn.*\n\n@OptIn(ExperimentalMaterial3Api::class)',
+              'import com.moon.vpn.*\nimport com.moon.vpn.R\n\n@OptIn(ExperimentalMaterial3Api::class)'
+          )
+
+          with open('build_moon.sh', 'w') as f:
+              f.write(code)
+          "
+
       - name: Build APK
         env:
           MOON_WORK: ${{ github.workspace }}/build
