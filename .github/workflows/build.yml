@@ -26,7 +26,6 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # ЭТА КОМАНДА САМА ИСПРАВИТ ОШИБКУ В КОДЕ И ОТКРОЕТ ПОЛНЫЙ ЛОГ
       - name: Patch Script
         run: |
           sed -i 's/| tail -40//g' build_moon.sh
@@ -37,7 +36,17 @@ jobs:
       - name: Build APK
         env:
           MOON_WORK: ${{ github.workspace }}/build
-        run: bash build_moon.sh
+        run: |
+          set +e
+          bash build_moon.sh 2>&1 | tee build_output.log
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "=========================================="
+            echo "🔴 ТОЧНЫЕ ОШИБКИ КОМПИЛЯЦИИ:"
+            echo "=========================================="
+            grep -E "^e: |error:" build_output.log || true
+            echo "=========================================="
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
