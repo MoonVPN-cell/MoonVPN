@@ -26,9 +26,13 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # ЭТА СТРОКА САМА НАЙДЕТ И ИСПРАВИТ ОШИБКУ В СКРИПТЕ
-      - name: Fix Compose Compiler
-        run: sed -i 's|material-icons-extended")|material-icons-extended:1.6.8")|g' build_moon.sh
+      # ЭТА КОМАНДА САМА ИСПРАВИТ ОШИБКУ В КОДЕ И ОТКРОЕТ ПОЛНЫЙ ЛОГ
+      - name: Patch Script
+        run: |
+          sed -i 's/| tail -40//g' build_moon.sh
+          sed -i 's/TextFieldDefaults.colors/OutlinedTextFieldDefaults.colors/g' build_moon.sh
+          sed -i 's/import androidx.compose.material3.TextFieldDefaults/import androidx.compose.material3.OutlinedTextFieldDefaults/g' build_moon.sh
+          sed -i 's/material-icons-extended")/material-icons-extended:1.6.8")/g' build_moon.sh
 
       - name: Build APK
         env:
@@ -41,4 +45,3 @@ jobs:
           name: moon-vpn-apk
           path: build/MoonVPN/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
-      
