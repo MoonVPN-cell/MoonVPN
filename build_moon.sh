@@ -36,7 +36,7 @@ mkdir -p "$APP/app/libs" \
          "$APP/app/src/main/res/mipmap-anydpi-v26" \
          "$APP/app/src/main/res/mipmap-anydpi"
 
-# ─── 3. libv2ray.aar ───
+AAR="$APP/app/libs/libv2ray.aar"
 step "Скачиваю libv2ray.aar…"
 # Пытаемся скачать с GitHub, если не выходит — с зеркала SourceForge
 curl -fL --retry 3 --progress-bar -o "$AAR" \
