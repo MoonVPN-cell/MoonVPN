@@ -47,6 +47,12 @@ jobs:
           # 3. Заменяем отсутствующую иконку
           content = content.replace('Icons.Default.Zap', 'Icons.Default.Settings')
 
+          # 4. Убираем конфликт JVM сигнатур (переименовываем функции)
+          content = content.replace('setSubscriptions', 'updateSubscriptions')
+          content = content.replace('setAutoConnect', 'updateAutoConnect')
+          content = content.replace('setKillSwitch', 'updateKillSwitch')
+          content = content.replace('setNotifications', 'updateNotifications')
+
           with open('build_moon.sh', 'w') as f:
               f.write(content)
           "
