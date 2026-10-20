@@ -304,6 +304,7 @@ object SubscriptionParser {
 }
 EOF
 
+# ИСПРАВЛЕННЫЙ SubscriptionFetcher (continue заменен на return@use)
 cat > "$BASE/SubscriptionFetcher.kt" <<'EOF'
 package com.moon.vpn
 
@@ -318,7 +319,7 @@ object SubscriptionFetcher {
         .connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
 
     suspend fun fetch(url: String): Result<String> = withContext(Dispatchers.IO) {
-        val userAgents = listOf("INCY/1.0", "Happ/2.0", "v2rayNG/1.8.0", "Mozilla/5.0")
+        val userAgents = listOf("INCY/1.0", "Happ/2.0", "v2rayNG/1.8.0")
         var lastError = "Ошибка загрузки"
 
         for (ua in userAgents) {
@@ -328,8 +329,12 @@ object SubscriptionFetcher {
                     if (r.isSuccessful) {
                         val body = r.body?.string() ?: ""
                         if (body.contains("0.0.0.0") || body.contains("App not supported")) {
-                            lastError = "Провайдер блокирует запрос (Заглушка 0.0.0.0)"
-                            continue
+                            lastError = "Провайдер блокирует (Заглушка 0.0.0.0)"
+                            return@use
+                        }
+                        if (body.trim().startsWith("<html")) {
+                            lastError = "Получен HTML вместо подписки. Возможно, ссылка неверна."
+                            return@use
                         }
                         return@withContext Result.success(body)
                     } else {
