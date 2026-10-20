@@ -11,14 +11,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - name: Accept licenses
         run: yes | sdkmanager --licenses || true
@@ -26,16 +26,13 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Make script executable
-        run: chmod +x build_moon.sh
-
       - name: Build APK
         env:
           MOON_WORK: ${{ github.workspace }}/build
-        run: ./build_moon.sh
+        run: bash build_moon.sh
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: moon-vpn-apk
           path: build/MoonVPN/app/build/outputs/apk/debug/app-debug.apk
