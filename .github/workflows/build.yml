@@ -26,14 +26,15 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      # АВТО-ИСПРАВЛЕНИЕ КОДА (переименование функций, чтобы не было конфликтов)
-      - name: Auto-Fix Script
+      # АВТО-ИСПРАВЛЕНИЕ И УЛУЧШЕНИЕ ЗАГРУЗЧИКА ПОДПИСОК
+      - name: Auto-Fix & Upgrade Fetcher
         run: |
           python3 -c "
+          import re
           with open('build_moon.sh', 'r') as f:
               code = f.read()
 
-          # Убираем конфликты JVM (переименовываем функции)
+          # 1. Убираем конфликты JVM (setters)
           replacements = {
               'fun setSubscriptions': 'fun updateSubscriptions',
               'setSubscriptions(': 'updateSubscriptions(',
@@ -48,12 +49,64 @@ jobs:
               'fun setStealthMode': 'fun updateStealthMode',
               'setStealthMode(': 'updateStealthMode('
           }
-
           for old, new in replacements.items():
               code = code.replace(old, new)
-
-          # Добавляем недостающую ветку RECONNECTING
           code = code.replace('ConnState.CONNECTED, ConnState.CONNECTING -> disconnect()', 'ConnState.CONNECTED, ConnState.CONNECTING, ConnState.RECONNECTING -> disconnect()')
+
+          # 2. УЛУЧШАЕМ SubscriptionFetcher (Мульти-маскировка)
+          new_fetcher = '''
+          package com.moon.vpn
+
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+          import okhttp3.OkHttpClient
+          import okhttp3.Request
+          import java.net.SocketTimeoutException
+          import java.net.UnknownHostException
+          import java.util.concurrent.TimeUnit
+
+          object SubscriptionFetcher {
+              private val client = OkHttpClient.Builder()
+                  .connectTimeout(15, TimeUnit.SECONDS)
+                  .readTimeout(20, TimeUnit.SECONDS)
+                  .build()
+
+              suspend fun fetch(url: String): Result<String> = withContext(Dispatchers.IO) {
+                  val userAgents = listOf(\"INCY/1.0\", \"Happ/2.0\", \"v2rayNG/1.8.0\", \"Mozilla/5.0\")
+                  var lastError: Exception? = null
+
+                  for (ua in userAgents) {
+                      try {
+                          val req = Request.Builder().url(url).header(\"User-Agent\", ua).build()
+                          client.newCall(req).execute().use { r ->
+                              if (r.isSuccessful) {
+                                  val body = r.body?.string() ?: \"\"
+                                  if (body.contains(\"0.0.0.0\") || body.contains(\"App not supported\")) {
+                                      lastError = Exception(\"Провайдер блокирует запрос (Заглушка 0.0.0.0)\")
+                                      continue
+                                  }
+                                  return@withContext Result.success(body)
+                              } else {
+                                  lastError = Exception(\"Ошибка сети: \${r.code}\")
+                              }
+                          }
+                      } catch (e: SocketTimeoutException) {
+                          lastError = Exception(\"Превышено время ожидания\")
+                      } catch (e: UnknownHostException) {
+                          lastError = Exception(\"Не удалось найти сервер\")
+                      } catch (e: Exception) {
+                          lastError = Exception(\"Ошибка: \${e.message}\")
+                      }
+                  }
+                  Result.failure(lastError ?: Exception(\"Не удалось получить данные\"))
+              }
+          }
+          '''
+          
+          # Заменяем старый SubscriptionFetcher на новый
+          pattern = r\"cat > \\\"\\\$BASE/SubscriptionFetcher\\.kt\\\" <<'EOF'\\n.*?\\nEOF\"
+          replacement = \"cat > \\\"\\\$BASE/SubscriptionFetcher.kt\\\" <<'EOF'\\n\" + new_fetcher + \"\\nEOF\"
+          code = re.sub(pattern, replacement, code, flags=re.DOTALL)
 
           with open('build_moon.sh', 'w') as f:
               f.write(code)
