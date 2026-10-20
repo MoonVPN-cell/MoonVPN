@@ -117,20 +117,16 @@ dependencies {
 }
 EOF
 
-step "Генерирую иконку (чёткий полумесяц)…"
+step "Генерирую иконку…"
 cat > "$APP/app/src/main/res/drawable/ic_launcher_foreground.xml" <<'EOF'
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#DFE4EC" android:pathData="M 54,18 A 36,36 0 1 1 18,54 A 28,28 0 1 0 54,18 Z" />
 </vector>
 EOF
 
 cat > "$APP/app/src/main/res/drawable/ic_launcher_background.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#080A0E" android:pathData="M0,0 h108 v108 h-108 Z"/>
 </vector>
 EOF
@@ -145,10 +141,7 @@ EOF
 
 cat > "$APP/app/src/main/res/mipmap-anydpi/ic_launcher.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#080A0E" android:pathData="M0,0 h108 v108 h-108 Z"/>
     <path android:fillColor="#DFE4EC" android:pathData="M 54,18 A 36,36 0 1 1 18,54 A 28,28 0 1 0 54,18 Z" />
 </vector>
@@ -156,9 +149,7 @@ EOF
 
 cat > "$APP/app/src/main/res/values/colors.xml" <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="ic_launcher_background">#080A0E</color>
-</resources>
+<resources><color name="ic_launcher_background">#080A0E</color></resources>
 EOF
 
 cat > "$APP/app/src/main/res/values/styles.xml" <<'EOF'
@@ -182,17 +173,8 @@ cat > "$APP/app/src/main/AndroidManifest.xml" <<'EOF'
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <application
-        android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="Moon VPN"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.MoonVPN">
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+    <application android:allowBackup="false" android:icon="@mipmap/ic_launcher" android:label="Moon VPN" android:supportsRtl="true" android:theme="@style/Theme.MoonVPN">
+        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -208,14 +190,8 @@ cat > "$APP/app/src/main/AndroidManifest.xml" <<'EOF'
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".vpn.MoonVpnService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse"
-            android:permission="android.permission.BIND_VPN_SERVICE">
-            <intent-filter>
-                <action android:name="android.net.VpnService" />
-            </intent-filter>
+        <service android:name=".vpn.MoonVpnService" android:exported="false" android:foregroundServiceType="specialUse" android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter><action android:name="android.net.VpnService" /></intent-filter>
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn" />
         </service>
 
@@ -248,9 +224,7 @@ object Moon {
     val Text = Color(0xFFE9EDF3)
     val Muted = Color(0xFFAEB8C7)
     val Dim = Color(0xFF858E9D)
-    
     var Accent by mutableStateOf(Color(0xFFDFE4EC)) 
-    
     val Success = Color(0xFF70C398)
     val Warning = Color(0xFFD9B56B)
     val Error = Color(0xFFE47C7C)
@@ -261,22 +235,13 @@ cat > "$BASE/XrayNode.kt" <<'EOF'
 package com.moon.vpn
 
 data class XrayNode(
-    val protocol: String,
-    val name: String,
-    val host: String,
-    val port: Int,
-    val rawLink: String,
-    var ping: Int = 0,
-    var load: Int = (10..95).random() // Имитация загрузки сервера
+    val protocol: String, val name: String, val host: String, val port: Int, val rawLink: String,
+    var ping: Int = 0, var load: Int = (10..95).random()
 )
 
 data class Subscription(
-    val id: String,
-    val name: String,
-    val url: String,
-    val nodes: List<XrayNode>,
-    val lastError: String? = null,
-    val lastUpdated: Long = 0L
+    val id: String, val name: String, val url: String, val nodes: List<XrayNode>,
+    val lastError: String? = null, val lastUpdated: Long = 0L
 )
 EOF
 
@@ -293,23 +258,13 @@ object SubscriptionParser {
         return decoded.lineSequence()
             .map { it.trim() }.filter { it.isNotEmpty() }
             .mapNotNull { parseLink(it) }
-            .filter { 
-                it.host != "0.0.0.0" && it.host != "127.0.0.1" && 
-                !it.name.contains("App not supported", true) && 
-                !it.name.contains("blocked", true)
-            }
+            .filter { it.host != "0.0.0.0" && it.host != "127.0.0.1" && !it.name.contains("App not supported", true) && !it.name.contains("blocked", true) }
             .toList()
     }
 
     fun parseAdvancedLink(link: String): XrayNode? {
-        if (link.startsWith("happ://add/")) {
-            val realUrl = link.removePrefix("happ://add/")
-            return XrayNode("happ_redirect", "Happ Подписка", realUrl, 0, realUrl)
-        }
-        if (link.startsWith("incy://add/")) {
-            val realUrl = link.removePrefix("incy://add/")
-            return XrayNode("incy_redirect", "INCY Подписка", realUrl, 0, realUrl)
-        }
+        if (link.startsWith("happ://add/")) return XrayNode("happ_redirect", "Happ Подписка", link.removePrefix("happ://add/"), 0, link.removePrefix("happ://add/"))
+        if (link.startsWith("incy://add/")) return XrayNode("incy_redirect", "INCY Подписка", link.removePrefix("incy://add/"), 0, link.removePrefix("incy://add/"))
         return parseLink(link)
     }
 
@@ -325,22 +280,17 @@ object SubscriptionParser {
 
     private fun parseVless(link: String): XrayNode? {
         val uri = URI(link); val host = uri.host ?: return null
-        val port = if (uri.port > 0) uri.port else 443
-        val name = uri.fragment?.let { decode(it) } ?: "$host:$port"
-        return XrayNode("vless", name, host, port, link)
+        return XrayNode("vless", uri.fragment?.let { decode(it) } ?: "$host:${uri.port}", host, if (uri.port > 0) uri.port else 443, link)
     }
     private fun parseTrojan(link: String): XrayNode? {
         val uri = URI(link); val host = uri.host ?: return null
-        val port = if (uri.port > 0) uri.port else 443
-        val name = uri.fragment?.let { decode(it) } ?: "$host:$port"
-        return XrayNode("trojan", name, host, port, link)
+        return XrayNode("trojan", uri.fragment?.let { decode(it) } ?: "$host:${uri.port}", host, if (uri.port > 0) uri.port else 443, link)
     }
     private fun parseShadowsocks(link: String): XrayNode? {
         val raw = link.removePrefix("ss://")
         val hostPort = raw.substringBefore("#").substringAfter("@", raw)
         val host = hostPort.substringBefore(":").ifBlank { return null }
-        val port = hostPort.substringAfter(":").toIntOrNull() ?: 8388
-        return XrayNode("shadowsocks", "$host:$port", host, port, link)
+        return XrayNode("shadowsocks", "$host:${hostPort.substringAfter(":")}", host, hostPort.substringAfter(":").toIntOrNull() ?: 8388, link)
     }
     private fun parseVmess(link: String): XrayNode? {
         val json = String(Base64.decode(link.removePrefix("vmess://"), Base64.DEFAULT))
@@ -349,9 +299,7 @@ object SubscriptionParser {
         val name = Regex("\"ps\"\\s*:\\s*\"([^\"]*)\"").find(json)?.groupValues?.get(1) ?: "$host:$port"
         return XrayNode("vmess", name, host, port, link)
     }
-    private fun tryDecodeBase64(text: String): String = try {
-        String(Base64.decode(text.replace("\n", "").trim(), Base64.DEFAULT))
-    } catch (_: Exception) { text }
+    private fun tryDecodeBase64(text: String): String = try { String(Base64.decode(text.replace("\n", "").trim(), Base64.DEFAULT)) } catch (_: Exception) { text }
     private fun decode(s: String): String = URLDecoder.decode(s, "UTF-8")
 }
 EOF
@@ -363,39 +311,40 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 object SubscriptionFetcher {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+        .connectTimeout(15, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
 
     suspend fun fetch(url: String): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val req = Request.Builder().url(url).header("User-Agent", "Happ/1.0").build()
-            client.newCall(req).execute().use { r ->
-                if (!r.isSuccessful) {
-                    val msg = when (r.code) {
-                        404 -> "Подписка не найдена (Ошибка 404)"
-                        403 -> "Доступ запрещен (Ошибка 403)"
-                        500 -> "Сервер провайдера упал (Ошибка 500)"
-                        else -> "Ошибка сети: ${r.code}"
+        val userAgents = listOf("INCY/1.0", "Happ/2.0", "v2rayNG/1.8.0", "Mozilla/5.0")
+        var lastError = "Ошибка загрузки"
+
+        for (ua in userAgents) {
+            try {
+                val req = Request.Builder().url(url).header("User-Agent", ua).build()
+                client.newCall(req).execute().use { r ->
+                    if (r.isSuccessful) {
+                        val body = r.body?.string() ?: ""
+                        if (body.contains("0.0.0.0") || body.contains("App not supported")) {
+                            lastError = "Провайдер блокирует запрос (Заглушка 0.0.0.0)"
+                            continue
+                        }
+                        return@withContext Result.success(body)
+                    } else {
+                        lastError = when(r.code) {
+                            404 -> "Подписка не найдена (404)"
+                            403 -> "Доступ запрещен (403)"
+                            else -> "Ошибка сервера: ${r.code}"
+                        }
                     }
-                    Result.failure(Exception(msg))
-                } else {
-                    Result.success(r.body?.string() ?: "")
                 }
+            } catch (e: Exception) {
+                lastError = "Ошибка сети: ${e.message}"
             }
-        } catch (e: SocketTimeoutException) {
-            Result.failure(Exception("Превышено время ожидания. Сервер не отвечает."))
-        } catch (e: UnknownHostException) {
-            Result.failure(Exception("Не удалось найти сервер. Проверьте интернет."))
-        } catch (e: Exception) {
-            Result.failure(Exception("Неизвестная ошибка: ${e.message}"))
         }
+        Result.failure(Exception(lastError))
     }
 }
 EOF
@@ -411,9 +360,7 @@ object SubscriptionStore {
     private const val PREFS = "moon_vpn_prefs"
     fun load(context: Context): List<Subscription> {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("subs", null) ?: return emptyList()
-        return try {
-            val arr = JSONArray(raw); (0 until arr.length()).map { i -> parseSub(arr.getJSONObject(i)) }
-        } catch (_: Exception) { emptyList() }
+        return try { val arr = JSONArray(raw); (0 until arr.length()).map { i -> parseSub(arr.getJSONObject(i)) } } catch (_: Exception) { emptyList() }
     }
     fun save(context: Context, subs: List<Subscription>) {
         val arr = JSONArray(); subs.forEach { arr.put(toJson(it)) }
@@ -425,9 +372,7 @@ object SubscriptionStore {
     }
     fun loadSelected(context: Context): XrayNode? {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("selected_node", null) ?: return null
-        return try {
-            val o = JSONObject(raw); XrayNode(o.getString("protocol"), o.getString("name"), o.getString("host"), o.getInt("port"), o.getString("rawLink"))
-        } catch (_: Exception) { null }
+        return try { val o = JSONObject(raw); XrayNode(o.getString("protocol"), o.getString("name"), o.getString("host"), o.getInt("port"), o.getString("rawLink")) } catch (_: Exception) { null }
     }
     fun loadBool(context: Context, key: String, def: Boolean) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(key, def)
     fun saveBool(context: Context, key: String, value: Boolean) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(key, value).apply() }
@@ -559,17 +504,16 @@ class AppState(private val ctx: Context) {
         selectedNode = n
         SubscriptionStore.saveSelected(ctx, n)
     }
-    fun setAutoConnect(v: Boolean) { autoConnect = v; SubscriptionStore.saveBool(ctx, "auto_connect", v) }
-    fun setKillSwitch(v: Boolean) { killSwitch = v; SubscriptionStore.saveBool(ctx, "kill_switch", v) }
-    fun setMoonShield(v: Boolean) { moonShield = v; SubscriptionStore.saveBool(ctx, "moon_shield", v) }
-    fun setStealthMode(v: Boolean) { stealthMode = v; SubscriptionStore.saveBool(ctx, "stealth_mode", v) }
+    fun updateAutoConnect(v: Boolean) { autoConnect = v; SubscriptionStore.saveBool(ctx, "auto_connect", v) }
+    fun updateKillSwitch(v: Boolean) { killSwitch = v; SubscriptionStore.saveBool(ctx, "kill_switch", v) }
+    fun updateMoonShield(v: Boolean) { moonShield = v; SubscriptionStore.saveBool(ctx, "moon_shield", v) }
+    fun updateStealthMode(v: Boolean) { stealthMode = v; SubscriptionStore.saveBool(ctx, "stealth_mode", v) }
 
     fun updatePings() {
         if (isUpdatingPings) return
         isUpdatingPings = true
         scope.launch {
-            val currentSubs = subscriptions
-            val newSubs = currentSubs.map { sub ->
+            val newSubs = subscriptions.map { sub ->
                 val newNodes = sub.nodes.map { node ->
                     async {
                         val time = try {
@@ -810,13 +754,11 @@ fun MoonApp(state: AppState, onToggleConnect: () -> Unit) {
 }
 EOF
 
-# НОВЫЙ ЭКРАН НАСТРОЕК
 cat > "$BASE/ui/SettingsScreen.kt" <<'EOF'
 package com.moon.vpn.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -840,49 +782,23 @@ import com.moon.vpn.Moon
 fun SettingsScreen(state: AppState) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { state.screen = "home" }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Moon.Text)
-            }
+            IconButton(onClick = { state.screen = "home" }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Moon.Text) }
             Text("Настройки", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Moon.Text, modifier = Modifier.padding(start = 8.dp))
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 SettingsCard(title = "Соединение") {
-                    SettingsToggleRow(
-                        icon = Icons.Default.PowerSettingsNew,
-                        title = "Автоподключение",
-                        desc = "Подключаться при загрузке телефона",
-                        checked = state.autoConnect
-                    ) { state.setAutoConnect(it) }
-                    
-                    SettingsToggleRow(
-                        icon = Icons.Default.Security,
-                        title = "Kill Switch",
-                        desc = "Блокировать интернет при обрыве VPN",
-                        checked = state.killSwitch
-                    ) { state.setKillSwitch(it) }
+                    SettingsToggleRow(Icons.Default.PowerSettingsNew, "Автоподключение", "Подключаться при загрузке телефона", state.autoConnect) { state.updateAutoConnect(it) }
+                    SettingsToggleRow(Icons.Default.Security, "Kill Switch", "Блокировать интернет при обрыве VPN", state.killSwitch) { state.updateKillSwitch(it) }
                 }
             }
-
             item {
                 SettingsCard(title = "Сеть и Безопасность") {
-                    SettingsToggleRow(
-                        icon = Icons.Default.Block,
-                        title = "Moon Shield",
-                        desc = "Блокировка рекламы и трекеров через DNS",
-                        checked = state.moonShield
-                    ) { state.setMoonShield(it) }
-
-                    SettingsToggleRow(
-                        icon = Icons.Default.VisibilityOff,
-                        title = "Stealth Mode",
-                        desc = "Маскировка трафика (обход блокировок)",
-                        checked = state.stealthMode
-                    ) { state.setStealthMode(it) }
+                    SettingsToggleRow(Icons.Default.Block, "Moon Shield", "Блокировка рекламы и трекеров через DNS", state.moonShield) { state.updateMoonShield(it) }
+                    SettingsToggleRow(Icons.Default.VisibilityOff, "Stealth Mode", "Маскировка трафика (обход блокировок)", state.stealthMode) { state.updateStealthMode(it) }
                 }
             }
-
             item {
                 SettingsCard(title = "О приложении") {
                     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -903,34 +819,14 @@ fun SettingsScreen(state: AppState) {
 fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         Text(title.uppercase(), fontSize = 11.sp, color = Moon.Dim, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-        Column(
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Moon.Surface)
-                .border(1.dp, Moon.Border, RoundedCornerShape(16.dp))
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            content = content
-        )
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 4.dp), content = content)
     }
 }
 
 @Composable
-fun SettingsToggleRow(
-    icon: ImageVector,
-    title: String,
-    desc: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
-                .background(Moon.Surface2),
-            contentAlignment = Alignment.Center
-        ) {
+fun SettingsToggleRow(icon: ImageVector, title: String, desc: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Moon.Surface2), contentAlignment = Alignment.Center) {
             Icon(icon, null, tint = Moon.Accent, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(16.dp))
@@ -938,21 +834,13 @@ fun SettingsToggleRow(
             Text(title, fontSize = 15.sp, color = Moon.Text)
             Text(desc, fontSize = 12.sp, color = Moon.Dim)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color(0xFF101216),
-                checkedTrackColor = Moon.Accent,
-                uncheckedThumbColor = Moon.Dim,
-                uncheckedTrackColor = Moon.Surface3
-            )
-        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(
+            checkedThumbColor = Color(0xFF101216), checkedTrackColor = Moon.Accent, uncheckedThumbColor = Moon.Dim, uncheckedTrackColor = Moon.Surface3
+        ))
     }
 }
 EOF
 
-# ОБНОВЛЕННЫЙ ГЛАВНЫЙ ЭКРАН (Bottom Sheet и FAB)
 cat > "$BASE/ui/HomeScreen.kt" <<'EOF'
 package com.moon.vpn.ui
 
@@ -989,34 +877,23 @@ fun HomeScreen(state: AppState, onToggleConnect: () -> Unit) {
     Scaffold(
         containerColor = Moon.Bg,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showBottomSheet = true },
-                containerColor = Moon.Surface2,
-                contentColor = Moon.Accent,
-                shape = CircleShape
-            ) {
+            FloatingActionButton(onClick = { showBottomSheet = true }, containerColor = Moon.Surface2, contentColor = Moon.Accent, shape = CircleShape) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить")
             }
         }
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            // HEADER
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Moon VPN", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
                 Spacer(Modifier.weight(1f))
                 val themes = listOf(Color(0xFFDFE4EC), Color(0xFF70A5FF), Color(0xFF70C398), Color(0xFFE47C7C))
                 themes.forEach { color ->
-                    Box(Modifier.padding(horizontal = 4.dp).size(20.dp).clip(CircleShape)
-                        .background(color).border(if (Moon.Accent == color) 2.dp else 0.dp, Moon.Text, CircleShape)
-                        .clickable { Moon.Accent = color })
+                    Box(Modifier.padding(horizontal = 4.dp).size(20.dp).clip(CircleShape).background(color).border(if (Moon.Accent == color) 2.dp else 0.dp, Moon.Text, CircleShape).clickable { Moon.Accent = color })
                 }
                 Spacer(Modifier.width(8.dp))
-                IconButton(onClick = { state.screen = "settings" }) {
-                    Icon(Icons.Default.Settings, null, tint = Moon.Muted)
-                }
+                IconButton(onClick = { state.screen = "settings" }) { Icon(Icons.Default.Settings, null, tint = Moon.Muted) }
             }
             
-            // CONNECT ORB
             Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
                 val ringColor = when (state.conn) {
                     ConnState.CONNECTED -> Moon.Success
@@ -1024,28 +901,15 @@ fun HomeScreen(state: AppState, onToggleConnect: () -> Unit) {
                     ConnState.ERROR -> Moon.Error
                     else -> Moon.Border
                 }
-                Box(Modifier.size(160.dp).clip(CircleShape).background(Moon.Surface)
-                        .border(3.dp, ringColor, CircleShape).clickable(onClick = onToggleConnect),
-                    contentAlignment = Alignment.Center) {
-                    Box(Modifier.size(140.dp).clip(CircleShape).background(Color(0xFF0B0D10))
-                            .border(1.dp, Moon.Border, CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(160.dp).clip(CircleShape).background(Moon.Surface).border(3.dp, ringColor, CircleShape).clickable(onClick = onToggleConnect), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(140.dp).clip(CircleShape).background(Color(0xFF0B0D10)).border(1.dp, Moon.Border, CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Shield, null, tint = Moon.Text, modifier = Modifier.size(48.dp))
                     }
                 }
             }
 
-            // STATUS
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    when(state.conn) {
-                        ConnState.CONNECTED -> "Подключено"
-                        ConnState.CONNECTING -> "Подключение..."
-                        ConnState.RECONNECTING -> "Переподключение..."
-                        ConnState.ERROR -> "Ошибка"
-                        else -> "Отключено"
-                    },
-                    fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Moon.Text
-                )
+                Text(when(state.conn) { ConnState.CONNECTED -> "Подключено"; ConnState.CONNECTING -> "Подключение..."; ConnState.RECONNECTING -> "Переподключение..."; ConnState.ERROR -> "Ошибка"; else -> "Отключено" }, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Moon.Text)
                 if (state.conn == ConnState.CONNECTED) {
                     Text(formatTime(state.sessionSeconds), fontSize = 14.sp, color = Moon.Accent, modifier = Modifier.padding(top = 4.dp))
                     Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.Center) {
@@ -1059,33 +923,17 @@ fun HomeScreen(state: AppState, onToggleConnect: () -> Unit) {
 
             Spacer(Modifier.height(24.dp))
 
-            // SEARCH & AUTO
             if (state.allNodes().isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = "", onValueChange = {},
-                        placeholder = { Text("Поиск...", color = Moon.Dim, fontSize = 12.sp) },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Moon.Surface, unfocusedContainerColor = Moon.Surface,
-                            focusedTextColor = Moon.Text, unfocusedTextColor = Moon.Text,
-                            focusedBorderColor = Moon.Border, unfocusedBorderColor = Moon.Border
-                        )
-                    )
+                    OutlinedTextField(value = "", onValueChange = {}, placeholder = { Text("Поиск...", color = Moon.Dim, fontSize = 12.sp) }, modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(10.dp), colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Surface, unfocusedContainerColor = Moon.Surface, focusedTextColor = Moon.Text, unfocusedTextColor = Moon.Text, focusedBorderColor = Moon.Border, unfocusedBorderColor = Moon.Border))
                     Spacer(Modifier.width(8.dp))
-                    IconButton(onClick = { state.autoSelectBest() },
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(10.dp)).size(46.dp)
-                    ) { Icon(Icons.Default.Bolt, null, tint = Moon.Accent) }
+                    IconButton(onClick = { state.autoSelectBest() }, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(10.dp)).size(46.dp)) { Icon(Icons.Default.Bolt, null, tint = Moon.Accent) }
                     Spacer(Modifier.width(8.dp))
-                    IconButton(onClick = { state.updatePings() },
-                        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(10.dp)).size(46.dp)
-                    ) { Icon(Icons.Default.Refresh, null, tint = if (state.isUpdatingPings) Moon.Accent else Moon.Muted) }
+                    IconButton(onClick = { state.updatePings() }, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(10.dp)).size(46.dp)) { Icon(Icons.Default.Refresh, null, tint = if (state.isUpdatingPings) Moon.Accent else Moon.Muted) }
                 }
                 Spacer(Modifier.height(12.dp))
             }
 
-            // SERVER LIST
             if (state.allNodes().isEmpty()) {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1098,44 +946,21 @@ fun HomeScreen(state: AppState, onToggleConnect: () -> Unit) {
             } else {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.allNodes().sortedBy { it.ping }, key = { it.rawLink }) { node ->
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (state.selectedNode?.rawLink == node.rawLink) Moon.Surface2 else Moon.Surface)
-                                .border(1.dp, if (state.selectedNode?.rawLink == node.rawLink) Moon.Accent else Moon.Border, RoundedCornerShape(12.dp))
-                                .clickable { state.selectNode(node) }.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (state.selectedNode?.rawLink == node.rawLink) Moon.Surface2 else Moon.Surface).border(1.dp, if (state.selectedNode?.rawLink == node.rawLink) Moon.Accent else Moon.Border, RoundedCornerShape(12.dp)).clickable { state.selectNode(node) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(node.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Moon.Text)
                                     Spacer(Modifier.width(6.dp))
-                                    Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Moon.Surface3).padding(horizontal = 4.dp, vertical = 2.dp)) {
-                                        Text(node.protocol.uppercase().take(4), fontSize = 8.sp, color = Moon.Muted, fontWeight = FontWeight.Bold)
-                                    }
+                                    Box(Modifier.clip(RoundedCornerShape(4.dp)).background(Moon.Surface3).padding(horizontal = 4.dp, vertical = 2.dp)) { Text(node.protocol.uppercase().take(4), fontSize = 8.sp, color = Moon.Muted, fontWeight = FontWeight.Bold) }
                                 }
-                                // Нагрузка (Load)
                                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    LinearProgressIndicator(
-                                        progress = { node.load / 100f },
-                                        modifier = Modifier.width(60.dp).height(4.dp).clip(CircleShape),
-                                        color = if (node.load < 60) Moon.Success else if (node.load < 85) Moon.Warning else Moon.Error,
-                                        trackColor = Moon.Surface3,
-                                    )
+                                    LinearProgressIndicator(progress = { node.load / 100f }, modifier = Modifier.width(60.dp).height(4.dp).clip(CircleShape), color = if (node.load < 60) Moon.Success else if (node.load < 85) Moon.Warning else Moon.Error, trackColor = Moon.Surface3)
                                     Spacer(Modifier.width(6.dp))
                                     Text("${node.load}%", fontSize = 9.sp, color = Moon.Dim)
                                 }
                             }
-                            
-                            val (pingColor, pingText) = when {
-                                node.ping == 0 -> Moon.Dim to "—"
-                                node.ping < 100 -> Moon.Success to "${node.ping} мс"
-                                node.ping < 200 -> Moon.Warning to "${node.ping} мс"
-                                else -> Moon.Error to "Таймаут"
-                            }
-                            
-                            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(pingColor.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                Text(pingText, fontSize = 12.sp, color = pingColor, fontWeight = FontWeight.Bold)
-                            }
+                            val (pingColor, pingText) = when { node.ping == 0 -> Moon.Dim to "—"; node.ping < 100 -> Moon.Success to "${node.ping} мс"; node.ping < 200 -> Moon.Warning to "${node.ping} мс"; else -> Moon.Error to "Таймаут" }
+                            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(pingColor.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 6.dp)) { Text(pingText, fontSize = 12.sp, color = pingColor, fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -1143,78 +968,50 @@ fun HomeScreen(state: AppState, onToggleConnect: () -> Unit) {
         }
     }
 
-    // BOTTOM SHEET (Ввод подписки)
     if (showBottomSheet) {
         var input by remember { mutableStateOf("") }
         var loading by remember { mutableStateOf(false) }
         var msg by remember { mutableStateOf<String?>(null) }
 
-        ModalBottomSheet(
-            onDismissRequest = { showBottomSheet = false },
-            sheetState = sheetState,
-            containerColor = Moon.Surface,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Moon.Border) }
-        ) {
+        ModalBottomSheet(onDismissRequest = { showBottomSheet = false }, sheetState = sheetState, containerColor = Moon.Surface, dragHandle = { BottomSheetDefaults.DragHandle(color = Moon.Border) }) {
             Column(Modifier.padding(24.dp).fillMaxWidth()) {
                 Text("Добавить подписку", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
                 Spacer(Modifier.height(8.dp))
                 Text("Вставьте ссылку или конфиг", fontSize = 13.sp, color = Moon.Dim)
                 Spacer(Modifier.height(16.dp))
                 
-                OutlinedTextField(
-                    value = input, onValueChange = { input = it },
-                    placeholder = { Text("https://... или vless://...", color = Moon.Dim, fontSize = 13.sp) },
-                    modifier = Modifier.fillMaxWidth().height(100.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg,
-                        focusedTextColor = Moon.Text, unfocusedTextColor = Moon.Text,
-                        focusedBorderColor = Moon.Accent, unfocusedBorderColor = Moon.Border
-                    )
-                )
+                OutlinedTextField(value = input, onValueChange = { input = it }, placeholder = { Text("https://... или vless://...", color = Moon.Dim, fontSize = 13.sp) }, modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg, focusedTextColor = Moon.Text, unfocusedTextColor = Moon.Text, focusedBorderColor = Moon.Accent, unfocusedBorderColor = Moon.Border))
                 Spacer(Modifier.height(16.dp))
                 
-                Button(
-                    onClick = {
-                        var raw = input.trim()
-                        if (raw.contains("?q=")) raw = java.net.URLDecoder.decode(raw.substringAfter("?q="), "UTF-8")
-                        if (raw.startsWith("happ://add/")) raw = raw.removePrefix("happ://add/")
-                        if (raw.startsWith("incy://add/")) raw = raw.removePrefix("incy://add/")
-                        
-                        if (raw.isBlank()) { msg = "Введите ссылку"; return@Button }
-                        scope.launch {
-                            loading = true; msg = null
-                            try {
-                                val nodes = if (raw.startsWith("http", true)) {
-                                    val body = SubscriptionFetcher.fetch(raw).getOrThrow()
-                                    SubscriptionParser.parseSubscription(body)
-                                } else {
-                                    val node = SubscriptionParser.parseAdvancedLink(raw)
-                                    if (node != null) listOf(node) else SubscriptionParser.parseSubscription(raw)
-                                }
-                                if (nodes.isEmpty()) throw Exception("Не найдено узлов")
-                                val sub = Subscription(UUID.randomUUID().toString(), "Подписка ${state.subscriptions.size + 1}", raw, nodes, lastUpdated = System.currentTimeMillis())
-                                state.updateSubscriptions(state.subscriptions + sub)
-                                if (state.selectedNode == null && nodes.isNotEmpty()) state.selectNode(nodes.first())
-                                sheetState.hide()
-                                showBottomSheet = false
-                            } catch (e: Exception) { msg = e.message }
-                            finally { loading = false }
-                        }
-                    },
-                    enabled = !loading,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Moon.Accent, contentColor = Color(0xFF101216))
-                ) {
-                    if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Color(0xFF101216))
-                    else Text("Импортировать", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Button(onClick = {
+                    var raw = input.trim()
+                    if (raw.contains("?q=")) raw = java.net.URLDecoder.decode(raw.substringAfter("?q="), "UTF-8")
+                    if (raw.startsWith("happ://add/")) raw = raw.removePrefix("happ://add/")
+                    if (raw.startsWith("incy://add/")) raw = raw.removePrefix("incy://add/")
+                    
+                    if (raw.isBlank()) { msg = "Введите ссылку"; return@Button }
+                    scope.launch {
+                        loading = true; msg = null
+                        try {
+                            val nodes = if (raw.startsWith("http", true)) {
+                                val body = SubscriptionFetcher.fetch(raw).getOrThrow()
+                                SubscriptionParser.parseSubscription(body)
+                            } else {
+                                val node = SubscriptionParser.parseAdvancedLink(raw)
+                                if (node != null) listOf(node) else SubscriptionParser.parseSubscription(raw)
+                            }
+                            if (nodes.isEmpty()) throw Exception("Не найдено узлов")
+                            val sub = Subscription(UUID.randomUUID().toString(), "Подписка ${state.subscriptions.size + 1}", raw, nodes, lastUpdated = System.currentTimeMillis())
+                            state.updateSubscriptions(state.subscriptions + sub)
+                            if (state.selectedNode == null && nodes.isNotEmpty()) state.selectNode(nodes.first())
+                            sheetState.hide(); showBottomSheet = false
+                        } catch (e: Exception) { msg = e.message }
+                        finally { loading = false }
+                    }
+                }, enabled = !loading, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Moon.Accent, contentColor = Color(0xFF101216))) {
+                    if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Color(0xFF101216)) else Text("Импортировать", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
-                
-                msg?.let { 
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, fontSize = 12.sp, color = Moon.Error) 
-                }
+                msg?.let { Spacer(Modifier.height(8.dp)); Text(it, fontSize = 12.sp, color = Moon.Error) }
                 Spacer(Modifier.height(32.dp))
             }
         }
