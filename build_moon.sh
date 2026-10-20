@@ -42,16 +42,17 @@ AAR="$APP/app/libs/libv2ray.aar"
 step "Скачиваю libv2ray.aar…"
 curl -fL --retry 3 --progress-bar -o "$AAR" "https://github.com/2dust/AndroidLibXrayLite/releases/latest/download/libv2ray.aar" || curl -fL --retry 3 --progress-bar -o "$AAR" "https://sourceforge.net/projects/androidlibxraylite.mirror/files/latest/download" || die "Не удалось скачать libv2ray.aar"
 
-if ! command -v gradle >/dev/null; then
-  GRADLE_VER=8.7
-  GH="$WORK/gradle-$GRADLE_VER"
-  if [[ ! -d "$GH" ]]; then
-    step "Устанавливаю Gradle…"
-    curl -fL --progress-bar -o "$WORK/gradle.zip" "https://services.gradle.org/distributions/gradle-$GRADLE_VER-bin.zip"
-    unzip -q "$WORK/gradle.zip" -d "$WORK"
-  fi
-  export PATH="$GH/bin:$PATH"
+# Принудительный Gradle 8.7 для совместимости
+GRADLE_VER=8.7
+GH="$WORK/gradle-$GRADLE_VER"
+if [[ ! -d "$GH" ]]; then
+  step "Скачиваю Gradle $GRADLE_VER…"
+  curl -fL --progress-bar -o "$WORK/gradle.zip" "https://services.gradle.org/distributions/gradle-$GRADLE_VER-bin.zip"
+  unzip -q "$WORK/gradle.zip" -d "$WORK"
 fi
+export PATH="$GH/bin:$PATH"
+export GRADLE_HOME="$GH"
+log "Использую Gradle: $(gradle --version | grep '^Gradle' | head -1)"
 
 step "Генерирую Gradle-файлы…"
 cat > "$APP/settings.gradle.kts" <<'EOF'
@@ -87,13 +88,7 @@ plugins {
 android {
     namespace = "com.moon.vpn"
     compileSdk = 34
-    defaultConfig {
-        applicationId = "com.moon.vpn"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
-    }
+    defaultConfig { applicationId = "com.moon.vpn"; minSdk = 24; targetSdk = 34; versionCode = 1; versionName = "1.0.0" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
@@ -120,7 +115,7 @@ dependencies {
 }
 EOF
 
-step "Генерирую ресурсы и анимации…"
+step "Генерирую ресурсы…"
 cat > "$APP/app/src/main/res/drawable/ic_launcher_foreground.xml" <<'EOF'
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#DFE4EC" android:pathData="M 54,18 A 36,36 0 1 1 18,54 A 28,28 0 1 0 54,18 Z" />
