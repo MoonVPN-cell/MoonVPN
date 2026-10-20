@@ -26,6 +26,10 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
+      # ЭТА СТРОКА САМА НАЙДЕТ И ИСПРАВИТ ОШИБКУ В СКРИПТЕ
+      - name: Fix Compose Compiler
+        run: sed -i 's|material-icons-extended")|material-icons-extended:1.6.8")|g' build_moon.sh
+
       - name: Build APK
         env:
           MOON_WORK: ${{ github.workspace }}/build
@@ -37,3 +41,4 @@ jobs:
           name: moon-vpn-apk
           path: build/MoonVPN/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+      
