@@ -26,12 +26,30 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Patch Script
+      - name: Patch Script (Auto-Fix Errors)
         run: |
-          sed -i 's/| tail -40//g' build_moon.sh
-          sed -i 's/TextFieldDefaults.colors/OutlinedTextFieldDefaults.colors/g' build_moon.sh
-          sed -i 's/import androidx.compose.material3.TextFieldDefaults/import androidx.compose.material3.OutlinedTextFieldDefaults/g' build_moon.sh
-          sed -i 's/material-icons-extended")/material-icons-extended:1.6.8")/g' build_moon.sh
+          python3 -c "
+          with open('build_moon.sh', 'r') as f:
+              content = f.read()
+
+          # 1. Исправляем типы данных для libv2ray
+          content = content.replace('override fun startup(): Int = 0', 'override fun startup(): Long = 0')
+          content = content.replace('override fun shutdown(): Int = 0', 'override fun shutdown(): Long = 0')
+          content = content.replace('override fun onEmitStatus(code: Int, message: String): Int {', 'override fun onEmitStatus(code: Long, message: String?): Long {')
+          content = content.replace('if (code != 0) sendError(\"Xray: \$message\"); return 0', 'if (code != 0L) sendError(\"Xray: \$message\"); return 0L')
+
+          # 2. Исправляем названия цветов для Compose TextField
+          content = content.replace('import androidx.compose.material3.TextFieldDefaults', 'import androidx.compose.material3.OutlinedTextFieldDefaults')
+          content = content.replace('TextFieldDefaults.colors', 'OutlinedTextFieldDefaults.colors')
+          content = content.replace('focusedIndicatorColor', 'focusedBorderColor')
+          content = content.replace('unfocusedIndicatorColor', 'unfocusedBorderColor')
+
+          # 3. Заменяем отсутствующую иконку
+          content = content.replace('Icons.Default.Zap', 'Icons.Default.Settings')
+
+          with open('build_moon.sh', 'w') as f:
+              f.write(content)
+          "
 
       - name: Build APK
         env:
