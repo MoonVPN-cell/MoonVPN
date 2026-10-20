@@ -26,35 +26,40 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Patch Script (Auto-Fix Errors)
+      # АВТО-ИСПРАВЛЕНИЕ СКРИПТА ПРЯМО ВО ВРЕМЯ СБОРКИ
+      - name: Auto-Fix Script
         run: |
           python3 -c "
+          import re
           with open('build_moon.sh', 'r') as f:
-              content = f.read()
+              code = f.read()
 
-          # 1. Исправляем типы данных для libv2ray
-          content = content.replace('override fun startup(): Int = 0', 'override fun startup(): Long = 0')
-          content = content.replace('override fun shutdown(): Int = 0', 'override fun shutdown(): Long = 0')
-          content = content.replace('override fun onEmitStatus(code: Int, message: String): Int {', 'override fun onEmitStatus(code: Long, message: String?): Long {')
-          content = content.replace('if (code != 0) sendError(\"Xray: \$message\"); return 0', 'if (code != 0L) sendError(\"Xray: \$message\"); return 0L')
+          # 1. Исправляем типы данных для libv2ray (Int -> Long)
+          code = code.replace('override fun startup(): Int = 0', 'override fun startup(): Long = 0')
+          code = code.replace('override fun shutdown(): Int = 0', 'override fun shutdown(): Long = 0')
+          code = code.replace('override fun onEmitStatus(code: Int, message: String): Int {', 'override fun onEmitStatus(code: Long, message: String?): Long {')
+          code = code.replace('if (code != 0) sendError(\"Xray: \$message\"); return 0', 'if (code != 0L) sendError(\"Xray: \$message\"); return 0L')
 
           # 2. Исправляем названия цветов для Compose TextField
-          content = content.replace('import androidx.compose.material3.TextFieldDefaults', 'import androidx.compose.material3.OutlinedTextFieldDefaults')
-          content = content.replace('TextFieldDefaults.colors', 'OutlinedTextFieldDefaults.colors')
-          content = content.replace('focusedIndicatorColor', 'focusedBorderColor')
-          content = content.replace('unfocusedIndicatorColor', 'unfocusedBorderColor')
+          code = code.replace('TextFieldDefaults.colors', 'OutlinedTextFieldDefaults.colors')
+          code = code.replace('focusedIndicatorColor', 'focusedBorderColor')
+          code = code.replace('unfocusedIndicatorColor', 'unfocusedBorderColor')
 
           # 3. Заменяем отсутствующую иконку
-          content = content.replace('Icons.Default.Zap', 'Icons.Default.Settings')
+          code = code.replace('Icons.Default.Zap', 'Icons.Default.Settings')
 
           # 4. Убираем конфликт JVM сигнатур (переименовываем функции)
-          content = content.replace('setSubscriptions', 'updateSubscriptions')
-          content = content.replace('setAutoConnect', 'updateAutoConnect')
-          content = content.replace('setKillSwitch', 'updateKillSwitch')
-          content = content.replace('setNotifications', 'updateNotifications')
+          code = code.replace('fun setSubscriptions', 'fun updateSubscriptions')
+          code = code.replace('setSubscriptions(', 'updateSubscriptions(')
+          code = code.replace('fun setAutoConnect', 'fun updateAutoConnect')
+          code = code.replace('setAutoConnect(', 'updateAutoConnect(')
+          code = code.replace('fun setKillSwitch', 'fun updateKillSwitch')
+          code = code.replace('setKillSwitch(', 'updateKillSwitch(')
+          code = code.replace('fun setNotifications', 'fun updateNotifications')
+          code = code.replace('setNotifications(', 'updateNotifications(')
 
           with open('build_moon.sh', 'w') as f:
-              f.write(content)
+              f.write(code)
           "
 
       - name: Build APK
