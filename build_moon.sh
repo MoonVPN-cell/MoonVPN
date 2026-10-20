@@ -1061,7 +1061,25 @@ EOF
 
 step "Собираю APK…"
 cd "$APP"
-gradle assembleDebug --no-daemon 2>&1 | tail -20
+set +e
+gradle assembleDebug --no-daemon > gradle_build.log 2>&1
+BUILD_EXIT_CODE=$?
+set -e
+
+if [ $BUILD_EXIT_CODE -ne 0 ]; then
+    echo -e "\n${R}🔴 СБОРКА НЕ УДАЛАСЬ${NC}"
+    echo "=========================================="
+    echo "ПОСЛЕДНИЕ 50 СТРОК ЛОГА:"
+    echo "=========================================="
+    tail -50 gradle_build.log
+    echo "=========================================="
+    echo "ТОЧНЫЕ ОШИБКИ КОМПИЛЯЦИИ:"
+    echo "=========================================="
+    grep -E "^e: |error:" gradle_build.log || true
+    echo "=========================================="
+    exit 1
+fi
+
 APK="$APP/app/build/outputs/apk/debug/app-debug.apk"
 [[ -f "$APK" ]] || die "APK не найден"
 log "ГОТОВО: $APK"
