@@ -37,10 +37,12 @@ mkdir -p "$APP/app/libs" \
          "$APP/app/src/main/res/mipmap-anydpi"
 
 # ─── 3. libv2ray.aar ───
-AAR="$APP/app/libs/libv2ray.aar"
 step "Скачиваю libv2ray.aar…"
+# Пытаемся скачать с GitHub, если не выходит — с зеркала SourceForge
 curl -fL --retry 3 --progress-bar -o "$AAR" \
   "https://github.com/2dust/AndroidLibXrayLite/releases/latest/download/libv2ray.aar" || \
+curl -fL --retry 3 --progress-bar -o "$AAR" \
+  "https://sourceforge.net/projects/androidlibxraylite.mirror/files/latest/download" || \
   die "Не удалось скачать libv2ray.aar"
 [[ -s "$AAR" ]] || die "libv2ray.aar пустой"
 log "AAR готов ($(du -h "$AAR" | cut -f1))"
