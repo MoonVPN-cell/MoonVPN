@@ -26,172 +26,45 @@ jobs:
       - name: Install Android components
         run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Auto-Fix All Errors
+      # АВТО-ИСПРАВЛЕНИЕ И ДОБАВЛЕНИЕ БУФЕРА ОБМЕНА (ЧЕРЕЗ SED И PYTHON)
+      - name: Auto-Fix & Add Clipboard
         run: |
           python3 -c "
-          import re
           with open('build_moon.sh', 'r') as f:
-              code = f.read()
+              lines = f.readlines()
 
-          main_activity_code = '''cat > \"\$BASE/MainActivity.kt\" <<'EOF'
-          package com.moon.vpn
+          # 1. Добавляем нужные импорты
+          for i, line in enumerate(lines):
+              if 'import android.os.Bundle' in line:
+                  lines.insert(i, 'import androidx.compose.material3.darkColorScheme\n')
+                  lines.insert(i, 'import androidx.compose.material3.MaterialTheme\n')
+                  break
+                  
+          for i, line in enumerate(lines):
+              if 'import com.moon.vpn.*' in line:
+                  lines.insert(i+1, 'import com.moon.vpn.R\n')
+                  break
 
-          import android.content.*
-          import androidx.compose.material3.MaterialTheme
-          import androidx.compose.material3.darkColorScheme
-          import android.os.Bundle
-          import androidx.activity.ComponentActivity
-          import androidx.activity.compose.setContent
-          import androidx.activity.result.contract.ActivityResultContracts
-          import androidx.compose.runtime.*
-          import androidx.core.content.ContextCompat
-          import androidx.hilt.navigation.compose.hiltViewModel
-          import androidx.lifecycle.compose.collectAsStateWithLifecycle
-          import com.moon.vpn.ui.*
-          import com.moon.vpn.vpn.MoonVpnService
-          import dagger.hilt.android.AndroidEntryPoint
-
-          @AndroidEntryPoint
-          class MainActivity : ComponentActivity() {
-              private val vpnPermLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r -> }
-              private val receiver = object : BroadcastReceiver() {
-                  override fun onReceive(ctx: Context?, intent: Intent?) {}
-              }
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  ContextCompat.registerReceiver(this, receiver, IntentFilter().apply { addAction(MoonVpnService.ACTION_ERROR); addAction(MoonVpnService.ACTION_STATE) }, ContextCompat.RECEIVER_NOT_EXPORTED)
-
-                  setContent {
-                      val viewModel: MainViewModel = hiltViewModel()
-                      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                      
-                      MaterialTheme(colorScheme = darkColorScheme(background = Moon.Bg, surface = Moon.Surface)) {
-                          HomeScreen(
-                              state = uiState,
-                              onToggleConnect = { },
-                              onAddSubscription = viewModel::addSubscription,
-                              onSelectNode = viewModel::selectNode
-                          )
-                      }
-                  }
-              }
-              override fun onDestroy() { unregisterReceiver(receiver); super.onDestroy() }
-          }
-          EOF'''
-
-          home_screen_code = '''cat > \"\$BASE/ui/HomeScreen.kt\" <<'EOF'
-          package com.moon.vpn.ui
-
-          import androidx.compose.foundation.background
-          import androidx.compose.foundation.border
-          import androidx.compose.foundation.clickable
-          import androidx.compose.foundation.layout.*
-          import androidx.compose.foundation.lazy.LazyColumn
-          import androidx.compose.foundation.lazy.items
-          import androidx.compose.foundation.shape.CircleShape
-          import androidx.compose.foundation.shape.RoundedCornerShape
-          import androidx.compose.material.icons.Icons
-          import androidx.compose.material.icons.filled.*
-          import androidx.compose.material3.*
-          import androidx.compose.runtime.*
-          import androidx.compose.ui.Alignment
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.draw.clip
-          import androidx.compose.ui.text.font.FontWeight
-          import androidx.compose.ui.unit.dp
-          import androidx.compose.ui.unit.sp
-          import com.airbnb.lottie.compose.*
-          import com.moon.vpn.*
-          import com.moon.vpn.R
-
-          @OptIn(ExperimentalMaterial3Api::class)
-          @Composable
-          fun HomeScreen(state: MainUiState, onToggleConnect: () -> Unit, onAddSubscription: (String) -> Unit, onSelectNode: (XrayNode) -> Unit) {
-              var showBottomSheet by remember { mutableStateOf(false) }
-              val sheetState = rememberModalBottomSheetState()
-              var inputUrl by remember { mutableStateOf(\"\") }
-              val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-
-              Scaffold(
-                  containerColor = Moon.Bg,
-                  floatingActionButton = {
-                      FloatingActionButton(onClick = { showBottomSheet = true }, containerColor = Moon.Surface2, contentColor = Moon.Accent, shape = CircleShape) {
-                          Icon(Icons.Default.Add, contentDescription = \"Добавить\")
-                      }
-                  }
-              ) { padding ->
-                  Column(Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-                      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                          Text(\"Moon VPN\", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
-                          Spacer(Modifier.weight(1f))
-                          IconButton(onClick = { }) { Icon(Icons.Default.Settings, null, tint = Moon.Muted) }
-                      }
-                      
-                      Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                          val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.connect_anim))
-                          val progress by animateLottieCompositionAsState(composition, isPlaying = state.connectionState == ConnState.CONNECTING || state.connectionState == ConnState.CONNECTED)
-                          
-                          Box(Modifier.size(160.dp).clip(CircleShape).clickable(onClick = onToggleConnect), contentAlignment = Alignment.Center) {
-                              LottieAnimation(composition, progress = { progress }, modifier = Modifier.size(160.dp))
-                              Icon(Icons.Default.Shield, null, tint = Moon.Text, modifier = Modifier.size(48.dp))
-                          }
-                      }
-
-                      Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                          Text(when(state.connectionState) { ConnState.CONNECTED -> \"Подключено\"; ConnState.CONNECTING -> \"Подключение...\"; else -> \"Отключено\" }, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Moon.Text)
-                          state.error?.let { Text(it, color = Moon.Error, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)) }
-                      }
-
-                      Spacer(Modifier.height(24.dp))
-
-                      if (state.subscriptions.isEmpty()) {
-                          Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                              Text(\"Нет серверов\nНажмите + чтобы добавить\", color = Moon.Dim, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                          }
-                      } else {
-                          LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                              items(state.subscriptions.flatMap { it.nodes }, key = { it.rawLink }) { node ->
-                                  Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(12.dp)).clickable { onSelectNode(node) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                      Text(node.name, fontSize = 14.sp, color = Moon.Text, modifier = Modifier.weight(1f))
-                                      Text(\"\${node.ping} мс\", fontSize = 12.sp, color = Moon.Success)
-                                  }
+          # 2. Заменяем строку с текстовым полем на версию с буфером обмена
+          for i, line in enumerate(lines):
+              if 'OutlinedTextField(value = inputUrl' in line:
+                  lines[i] = '''val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                      OutlinedTextField(
+                          value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(\"https://...\") },
+                          colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg),
+                          trailingIcon = {
+                              IconButton(onClick = {
+                                  val clipText = clipboardManager.getText()?.text
+                                  if (!clipText.isNullOrBlank()) inputUrl = clipText
+                              }) {
+                                  Icon(Icons.Default.ContentPaste, contentDescription = \"Вставить\", tint = Moon.Muted)
                               }
                           }
-                      }
-                  }
-              }
-
-              if (showBottomSheet) {
-                  ModalBottomSheet(onDismissRequest = { showBottomSheet = false }, sheetState = sheetState, containerColor = Moon.Surface) {
-                      Column(Modifier.padding(24.dp).fillMaxWidth()) {
-                          Text(\"Добавить подписку\", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
-                          Spacer(Modifier.height(16.dp))
-                          OutlinedTextField(
-                              value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text(\"https://...\") },
-                              colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg),
-                              trailingIcon = {
-                                  IconButton(onClick = {
-                                      val clipText = clipboardManager.getText()?.text
-                                      if (!clipText.isNullOrBlank()) inputUrl = clipText
-                                  }) {
-                                      Icon(Icons.Default.ContentPaste, contentDescription = \"Вставить\", tint = Moon.Muted)
-                                  }
-                              }
-                          )
-                          Spacer(Modifier.height(16.dp))
-                          Button(onClick = { onAddSubscription(inputUrl); showBottomSheet = false }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Moon.Accent)) { Text(\"Импортировать\", color = Moon.Bg) }
-                      }
-                  }
-              }
-          }
-          EOF'''
-
-          # Заменяем блоки целиком
-          code = re.sub(r'cat > \"\\\$BASE/MainActivity\\.kt\" <<\'EOF\'\n.*?EOF', main_activity_code, code, flags=re.DOTALL)
-          code = re.sub(r'cat > \"\\\$BASE/ui/HomeScreen\\.kt\" <<\'EOF\'\n.*?EOF', home_screen_code, code, flags=re.DOTALL)
+                      )\n'''
+                  break
 
           with open('build_moon.sh', 'w') as f:
-              f.write(code)
+              f.writelines(lines)
           "
 
       - name: Build APK
