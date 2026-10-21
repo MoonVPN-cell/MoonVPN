@@ -886,12 +886,24 @@ class MoonVpnService : VpnService() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     private val cb = object : CoreCallbackHandler {
-        override fun startup(): Int = 0
-        override fun shutdown(): Int = 0
-        override fun onEmitStatus(code: Int, message: String?): Int {
-            if (code != 0) sendError("Ошибка ядра Xray: $message")
-            return 0
-        }
+        
+override fun startup(): Long {
+    android.util.Log.i("MoonVPN", "V2Ray core started")
+    return 0L
+}
+
+override fun shutdown(): Long {
+    android.util.Log.i("MoonVPN", "V2Ray core stopped")
+    return 0L
+}
+
+override fun onEmitStatus(status: Long, message: String?): Long {
+    android.util.Log.i(
+        "MoonVPN",
+        "V2Ray status: $status, message: $message"
+    )
+    return 0L
+}
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
