@@ -112,6 +112,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.airbnb.android:lottie-compose:6.5.2")
+    // Парсер YAML (Clash / Mihomo)
+    implementation("org.yaml:snakeyaml:2.2")
 }
 EOF
 
@@ -259,7 +261,7 @@ package com.moon.vpn
 
 data class XrayNode(val protocol: String, val name: String, val host: String, val port: Int, val rawLink: String, var ping: Int = 0, var load: Int = (10..95).random())
 data class Subscription(val id: String, val name: String, val url: String, val nodes: List<XrayNode>, val lastError: String? = null, val lastUpdated: Long = 0L)
-data class MainUiState(val isLoading: Boolean = false, val subscriptions: List<Subscription> = emptyList(), val selectedNode: XrayNode? = null, val connectionState: ConnState = ConnState.DISCONNECTED, val error: String? = null, val sessionSeconds: Long = 0L, val downloadMb: Double = 0.0, val uploadMb: Double = 0.0, val isUpdatingPings: Boolean = false)
+data class MainUiState(val isLoading: Boolean = false, val subscriptions: List<Subscription> = emptyList(), val selectedNode: XrayNode? = null, val connectionState: ConnState = ConnState.DISCONNECTED, val error: String? = null, val sessionSeconds: Long = 0L, val downloadMb: Double = 0.0, val uploadMb: Double = 0.0, val isUpdatingPings: Boolean = false, val screen: String = "home")
 enum class ConnState { DISCONNECTED, CONNECTING, CONNECTED, RECONNECTING, ERROR }
 EOF
 
@@ -267,6 +269,9 @@ cat > "$BASE/SubscriptionParser.kt" <<'EOF'
 package com.moon.vpn
 
 import android.util.Base64
+import org.json.JSONArray
+import org.json.JSONObject
+import org.yaml.snakeyaml.Yaml
 import java.net.URI
 import java.net.URLDecoder
 import java.io.BufferedReader
@@ -274,8 +279,144 @@ import java.io.InputStreamReader
 
 object SubscriptionParser {
     fun parseSubscription(body: String): List<XrayNode> {
-        val decoded = tryDecodeBase64(body).trim()
-        return decoded.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.mapNotNull { parseLink(it) }.filter { it.host != "0.0.0.0" && it.host != "127.0.0.1" && !it.name.contains("App not supported", true) && !it.name.contains("blocked", true) }.toList()
+        val trimmed = body.trim()
+        // 1. JSON
+        if (trimmed.startsWith("{")) {
+            try {
+                val json = JSONObject(trimmed)
+                if (json.has("outbounds")) return parseJsonSubscription(json)
+                if (json.has("servers")) return parseJsonServers(json)
+            } catch (_: Exception) { }
+        }
+        // 2. YAML (Clash / Mihomo)
+        if (trimmed.contains("proxies:")) {
+            try {
+                return parseYamlSubscription(trimmed)
+            } catch (_: Exception) { }
+        }
+        // 3. Base64
+        val decoded = tryDecodeBase64(trimmed)
+        if (decoded != trimmed) {
+            return parseSubscription(decoded) // рекурсивно, вдруг внутри снова JSON
+        }
+        // 4. Обычный текст
+        return trimmed.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.mapNotNull { parseLink(it) }.filter { it.host != "0.0.0.0" && it.host != "127.0.0.1" && !it.name.contains("App not supported", true) && !it.name.contains("blocked", true) }.toList()
+    }
+
+    private fun parseJsonSubscription(json: JSONObject): List<XrayNode> {
+        val nodes = mutableListOf<XrayNode>()
+        val outbounds = json.optJSONArray("outbounds") ?: return emptyList()
+        for (i in 0 until outbounds.length()) {
+            val outbound = outbounds.optJSONObject(i) ?: continue
+            val protocol = outbound.optString("protocol").lowercase()
+            val settings = outbound.optJSONObject("settings") ?: continue
+            when (protocol) {
+                "vless", "vmess" -> {
+                    val vnext = settings.optJSONArray("vnext") ?: continue
+                    for (j in 0 until vnext.length()) {
+                        val server = vnext.optJSONObject(j) ?: continue
+                        val address = server.optString("address")
+                        val port = server.optInt("port", 443)
+                        val users = server.optJSONArray("users")
+                        val id = users?.optJSONObject(0)?.optString("id") ?: continue
+                        val name = outbound.optString("tag", "$address:$port")
+                        val link = if (protocol == "vless") {
+                            val stream = outbound.optJSONObject("streamSettings")
+                            val network = stream?.optString("network") ?: "tcp"
+                            val security = stream?.optString("security") ?: "none"
+                            val sni = stream?.optJSONObject("tlsSettings")?.optString("serverName") ?: address
+                            "vless://$id@$address:$port?encryption=none&security=$security&sni=$sni&type=$network#$name"
+                        } else {
+                            "vmess://$id@$address:$port#$name"
+                        }
+                        nodes.add(XrayNode(protocol, name, address, port, link))
+                    }
+                }
+                "trojan" -> {
+                    val servers = settings.optJSONArray("servers") ?: continue
+                    for (j in 0 until servers.length()) {
+                        val server = servers.optJSONObject(j) ?: continue
+                        val address = server.optString("address")
+                        val port = server.optInt("port", 443)
+                        val password = server.optString("password")
+                        val name = outbound.optString("tag", "$address:$port")
+                        val link = "trojan://$password@$address:$port#$name"
+                        nodes.add(XrayNode("trojan", name, address, port, link))
+                    }
+                }
+                "shadowsocks" -> {
+                    val servers = settings.optJSONArray("servers") ?: continue
+                    for (j in 0 until servers.length()) {
+                        val server = servers.optJSONObject(j) ?: continue
+                        val address = server.optString("address")
+                        val port = server.optInt("port", 8388)
+                        val method = server.optString("method", "aes-256-gcm")
+                        val password = server.optString("password")
+                        val name = outbound.optString("tag", "$address:$port")
+                        val link = "ss://$method:$password@$address:$port#$name"
+                        nodes.add(XrayNode("shadowsocks", name, address, port, link))
+                    }
+                }
+            }
+        }
+        return nodes
+    }
+
+    private fun parseJsonServers(json: JSONObject): List<XrayNode> {
+        val nodes = mutableListOf<XrayNode>()
+        val servers = json.optJSONArray("servers") ?: return emptyList()
+        for (i in 0 until servers.length()) {
+            val server = servers.optJSONObject(i) ?: continue
+            val address = server.optString("address")
+            val port = server.optInt("port", 443)
+            val protocol = server.optString("protocol", "vless")
+            val id = server.optString("id", "")
+            val name = server.optString("name", "$address:$port")
+            if (address.isNotEmpty()) {
+                nodes.add(XrayNode(protocol, name, address, port, ""))
+            }
+        }
+        return nodes
+    }
+
+    private fun parseYamlSubscription(yamlText: String): List<XrayNode> {
+        val nodes = mutableListOf<XrayNode>()
+        val yaml = Yaml()
+        val data = yaml.load<Map<String, Any>>(yamlText) ?: return emptyList()
+        val proxies = data["proxies"] as? List<Map<String, Any>> ?: return emptyList()
+        for (proxy in proxies) {
+            val name = proxy["name"] as? String ?: continue
+            val type = (proxy["type"] as? String)?.lowercase() ?: continue
+            val server = proxy["server"] as? String ?: continue
+            val port = (proxy["port"] as? Number)?.toInt() ?: 443
+            when (type) {
+                "vless" -> {
+                    val uuid = proxy["uuid"] as? String ?: continue
+                    val network = proxy["network"] as? String ?: "tcp"
+                    val tls = proxy["tls"] as? Boolean ?: false
+                    val sni = proxy["servername"] as? String ?: server
+                    val link = "vless://$uuid@$server:$port?encryption=none&security=${if (tls) "tls" else "none"}&sni=$sni&type=$network#$name"
+                    nodes.add(XrayNode("vless", name, server, port, link))
+                }
+                "vmess" -> {
+                    val uuid = proxy["uuid"] as? String ?: continue
+                    val link = "vmess://$uuid@$server:$port#$name"
+                    nodes.add(XrayNode("vmess", name, server, port, link))
+                }
+                "trojan" -> {
+                    val password = proxy["password"] as? String ?: continue
+                    val link = "trojan://$password@$server:$port#$name"
+                    nodes.add(XrayNode("trojan", name, server, port, link))
+                }
+                "ss", "shadowsocks" -> {
+                    val cipher = proxy["cipher"] as? String ?: "aes-256-gcm"
+                    val password = proxy["password"] as? String ?: continue
+                    val link = "ss://$cipher:$password@$server:$port#$name"
+                    nodes.add(XrayNode("shadowsocks", name, server, port, link))
+                }
+            }
+        }
+        return nodes
     }
 
     fun parseAdvancedLink(link: String): XrayNode? {
@@ -373,7 +514,12 @@ class SubscriptionFetcher @Inject constructor(private val context: Context) {
 
         for (ua in userAgents) {
             try {
-                val req = Request.Builder().url(effectiveUrl).header("User-Agent", ua).header("X-HWID", getHWID()).build()
+                val req = Request.Builder()
+                    .url(effectiveUrl)
+                    .header("User-Agent", ua)
+                    .header("X-HWID", getHWID())
+                    .header("Accept", "application/json, application/yaml, text/plain, */*")
+                    .build()
                 client.newCall(req).execute().use { r ->
                     if (r.isSuccessful) {
                         val body = r.body?.string() ?: ""
@@ -541,7 +687,7 @@ class MainViewModel @Inject constructor(
             try {
                 val body = fetcher.fetch(url).getOrThrow()
                 val nodes = SubscriptionParser.parseSubscription(body)
-                if (nodes.isEmpty()) throw Exception("Не найдено узлов")
+                if (nodes.isEmpty()) throw Exception("Не найдено узлов (возможно, формат не поддерживается)")
                 val newSub = Subscription(UUID.randomUUID().toString(), "Подписка ${_uiState.value.subscriptions.size + 1}", url, nodes)
                 val updatedSubs = _uiState.value.subscriptions + newSub
                 store.save(updatedSubs)
@@ -555,6 +701,7 @@ class MainViewModel @Inject constructor(
     fun selectNode(node: XrayNode) { store.saveSelected(node); _uiState.update { it.copy(selectedNode = node) } }
     fun setConnectionState(state: ConnState) { _uiState.update { it.copy(connectionState = state) } }
     fun setError(error: String?) { _uiState.update { it.copy(error = error) } }
+    fun setScreen(screen: String) { _uiState.update { it.copy(screen = screen) } }
 }
 EOF
 
@@ -673,7 +820,8 @@ cat > "$BASE/MainActivity.kt" <<'EOF'
 package com.moon.vpn
 
 import android.content.*
-import android.net.VpnService
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -700,13 +848,18 @@ class MainActivity : ComponentActivity() {
             val viewModel: MainViewModel = hiltViewModel()
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             
-            MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme(background = Moon.Bg, surface = Moon.Surface)) {
-                HomeScreen(
-                    state = uiState,
-                    onToggleConnect = { /* логика запуска VPN */ },
-                    onAddSubscription = viewModel::addSubscription,
-                    onSelectNode = viewModel::selectNode
-                )
+            MaterialTheme(colorScheme = darkColorScheme(background = Moon.Bg, surface = Moon.Surface)) {
+                if (uiState.screen == "settings") {
+                    SettingsScreen(uiState, onNavigate = viewModel::setScreen)
+                } else {
+                    HomeScreen(
+                        state = uiState,
+                        onToggleConnect = { },
+                        onAddSubscription = viewModel::addSubscription,
+                        onSelectNode = viewModel::selectNode,
+                        onNavigate = viewModel::setScreen
+                    )
+                }
             }
         }
     }
@@ -738,13 +891,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.*
 import com.moon.vpn.*
+import com.moon.vpn.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(state: MainUiState, onToggleConnect: () -> Unit, onAddSubscription: (String) -> Unit, onSelectNode: (XrayNode) -> Unit) {
+fun HomeScreen(state: MainUiState, onToggleConnect: () -> Unit, onAddSubscription: (String) -> Unit, onSelectNode: (XrayNode) -> Unit, onNavigate: (String) -> Unit) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     var inputUrl by remember { mutableStateOf("") }
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
     Scaffold(
         containerColor = Moon.Bg,
@@ -758,7 +913,14 @@ fun HomeScreen(state: MainUiState, onToggleConnect: () -> Unit, onAddSubscriptio
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Moon VPN", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { }) { Icon(Icons.Default.Settings, null, tint = Moon.Muted) }
+                val themes = listOf(Color(0xFFDFE4EC), Color(0xFF70A5FF), Color(0xFF70C398), Color(0xFFE47C7C))
+                themes.forEach { color ->
+                    Box(Modifier.padding(horizontal = 4.dp).size(20.dp).clip(CircleShape).background(color).border(if (Moon.Accent == color) 2.dp else 0.dp, Moon.Text, CircleShape).clickable { Moon.Accent = color })
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(onClick = { onNavigate("settings") }) {
+                    Icon(Icons.Default.Settings, contentDescription = "Настройки", tint = Moon.Muted)
+                }
             }
             
             Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
@@ -800,11 +962,109 @@ fun HomeScreen(state: MainUiState, onToggleConnect: () -> Unit, onAddSubscriptio
             Column(Modifier.padding(24.dp).fillMaxWidth()) {
                 Text("Добавить подписку", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Moon.Text)
                 Spacer(Modifier.height(16.dp))
-                OutlinedTextField(value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://...") }, colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg))
+                OutlinedTextField(
+                    value = inputUrl, onValueChange = { inputUrl = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://...") },
+                    colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = Moon.Bg, unfocusedContainerColor = Moon.Bg),
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            val clipText = clipboardManager.getText()?.text
+                            if (!clipText.isNullOrBlank()) inputUrl = clipText
+                        }) {
+                            Icon(Icons.Default.ContentPaste, contentDescription = "Вставить", tint = Moon.Muted)
+                        }
+                    }
+                )
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { onAddSubscription(inputUrl); showBottomSheet = false }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Moon.Accent)) { Text("Импортировать", color = Moon.Bg) }
             }
         }
+    }
+}
+EOF
+
+cat > "$BASE/ui/SettingsScreen.kt" <<'EOF'
+package com.moon.vpn.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.moon.vpn.MainUiState
+import com.moon.vpn.Moon
+
+@Composable
+fun SettingsScreen(state: MainUiState, onNavigate: (String) -> Unit) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onNavigate("home") }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Moon.Text) }
+            Text("Настройки", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Moon.Text, modifier = Modifier.padding(start = 8.dp))
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                SettingsCard(title = "Соединение") {
+                    SettingsToggleRow(Icons.Default.PowerSettingsNew, "Автоподключение", "Подключаться при загрузке телефона", true) {}
+                    SettingsToggleRow(Icons.Default.Security, "Kill Switch", "Блокировать интернет при обрыве VPN", true) {}
+                }
+            }
+            item {
+                SettingsCard(title = "Сеть и Безопасность") {
+                    SettingsToggleRow(Icons.Default.Block, "Moon Shield", "Блокировка рекламы и трекеров", false) {}
+                    SettingsToggleRow(Icons.Default.VisibilityOff, "Stealth Mode", "Маскировка трафика", false) {}
+                }
+            }
+            item {
+                SettingsCard(title = "О приложении") {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, null, tint = Moon.Muted, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("Moon VPN v1.0.0", fontSize = 14.sp, color = Moon.Text)
+                            Text("Работает на ядре Xray-core", fontSize = 12.sp, color = Moon.Dim)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(title.uppercase(), fontSize = 11.sp, color = Moon.Dim, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Moon.Surface).border(1.dp, Moon.Border, RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 4.dp), content = content)
+    }
+}
+
+@Composable
+fun SettingsToggleRow(icon: ImageVector, title: String, desc: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Moon.Surface2), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Moon.Accent, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 15.sp, color = Moon.Text)
+            Text(desc, fontSize = 12.sp, color = Moon.Dim)
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(
+            checkedThumbColor = Color(0xFF101216), checkedTrackColor = Moon.Accent, uncheckedThumbColor = Moon.Dim, uncheckedTrackColor = Moon.Surface3
+        ))
     }
 }
 EOF
